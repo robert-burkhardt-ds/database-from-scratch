@@ -6,12 +6,14 @@ tree.set(1, 'foo')
 tree.set(2, 'bar')
 tree.set(3, 'baz')
 tree.set(4, 'baz')
+tree.set(1.5, 'safdsa')
 print(tree.get(1))
 print(tree.get(2))
 print(tree.get(3))
 print(tree.get(4))
 print(tree.set(4, 'qux'))
 print(tree.get(4))
+print(tree.get(1.5))
 
 
 # tree.root.key_values = []

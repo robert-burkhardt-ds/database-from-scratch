@@ -59,8 +59,6 @@ class BTree:
                         balanced = True
                 if len(nodes) == 0:
                     self.root = candidate_parent
-
-
         return previous_value
 
 
