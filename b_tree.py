@@ -1,11 +1,29 @@
 class BTree:
-    def __init__(self, degree=3):
+    key_size = 64
+    value_size = 64
+    degree = 3
+    byteorder = "big"
+    def __init__(self, wal_name=None):
         self.root = Node()
-        self.degree = degree
+        self.wal_name = wal_name
+
+    def __enter__(self):
+        self.file = open(self.wal_name, '+ab', buffering=0) if self.wal_name is not None else open('wal.bin', '+wb', buffering=0)
+        self.file.seek(0)
+        byte_key, byte_value = self.file.read(self.key_size), self.file.read(self.value_size)
+        while byte_key and byte_value:
+            key = int.from_bytes(byte_key, byteorder=self.byteorder)
+            value = int.from_bytes(byte_value, byteorder=self.byteorder)
+            self._set(key, value)
+            byte_key, byte_value = self.file.read(self.key_size), self.file.read(self.value_size)
+        return self
+
+    def __exit__(self, _, __, ___):
+        self.file.close()
     
     def get(self, key):
         kv, _ = self._get(key, self.root)
-        return kv.value if kv is not None else None
+        return int.from_bytes(kv.value, byteorder=self.byteorder) if kv is not None else None
     
     def _get(self, key, node):
         matched_kv = None
@@ -14,30 +32,41 @@ class BTree:
         try_child = False
         while i < len(node.key_values) and matched_kv is None and not try_child:
             current_kv = node.key_values[i]
-            if current_kv.key == key:
+            current_key = int.from_bytes(current_kv.key, byteorder=self.byteorder)
+            if current_key == key:
                 matched_kv = current_kv
-            elif node.key_values[i].key < key:
+            elif current_key < key:
                 i += 1
             else:
                 try_child = True
         if matched_kv is None and i < len(node.children):
             matched_kv, candidate_nodes = self._get(key, node.children[i])
         return matched_kv, [node, *candidate_nodes]
-
+    
     def set(self, key, value):
-        previous_value = None
+        byte_key = key.to_bytes(self.key_size, byteorder=self.byteorder)
+        byte_value = value.to_bytes(self.value_size, byteorder=self.byteorder)
+        self.file.write(byte_key + byte_value)
+        prev_value = self._set(key, value)
+        return prev_value
+
+    def _set(self, key, value):
+        byte_key = key.to_bytes(self.key_size, byteorder=self.byteorder)
+        byte_value = value.to_bytes(self.value_size, byteorder=self.byteorder)
         kv, nodes = self._get(key, self.root)
+        previous_value = None
         if kv is not None:
             previous_value = kv.value
-            kv.value = value
+            kv.value = byte_value
         else:
             node = nodes.pop()
             if len(node.key_values) < self.degree:
                 i = 0
                 while i < len(node.key_values):
-                    if node.key_values[i].key < key:
+                    current_key = int.from_bytes(node.key_values[i].key, byteorder=self.byteorder)
+                    if current_key < key:
                         i += 1
-                node.key_values.insert(i, KeyValue(key, value))
+                node.key_values.insert(i, KeyValue(byte_key, byte_value))
             if len(node.key_values) == self.degree:
                 median_index = self.degree // 2
                 median = node.key_values[median_index]
@@ -59,7 +88,7 @@ class BTree:
                         balanced = True
                 if len(nodes) == 0:
                     self.root = candidate_parent
-        return previous_value
+        return int.from_bytes(previous_value, byteorder=self.byteorder) if previous_value is not None else None
 
 
 class Node:
