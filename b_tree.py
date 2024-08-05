@@ -62,32 +62,39 @@ class BTree:
             node = nodes.pop()
             if len(node.key_values) < self.degree:
                 i = 0
-                while i < len(node.key_values):
+                found_insert_position = False
+                while i < len(node.key_values) and not found_insert_position:
                     current_key = int.from_bytes(node.key_values[i].key, byteorder=self.byteorder)
                     if current_key < key:
                         i += 1
-                node.key_values.insert(i, KeyValue(byte_key, byte_value))
-            if len(node.key_values) == self.degree:
-                median_index = self.degree // 2
-                median = node.key_values[median_index]
-                lesser_children = [Node(key_values=node.key_values[0:median_index])]
-                greater_children = [Node(key_values=node.key_values[median_index + 1:])]
-                candidate_parent = nodes.pop() if len(nodes) != 0 else Node()
-                balanced = False
-                while not balanced:
-                    candidate_parent.key_values.append(median)
-                    candidate_parent.children.extend(lesser_children)
-                    candidate_parent.children.extend(greater_children)
-                    if len(candidate_parent.key_values) == self.degree:
-                        median_index = self.degree // 2
-                        median = candidate_parent.key_values[median_index]
-                        lesser_children = candidate_parent.children[0:median_index]
-                        greater_children = candidate_parent.children[median_index + 1:]
-                        candidate_parent = nodes.pop() if len(nodes) != 0 else Node()
                     else:
-                        balanced = True
-                if len(nodes) == 0:
-                    self.root = candidate_parent
+                        found_insert_position = True
+                node.key_values.insert(i, KeyValue(byte_key, byte_value))
+            curr_node = node
+            balanced = False
+            while not balanced:
+                if len(curr_node.key_values) < self.degree:
+                    balanced = True
+                else:
+                    median_index = self.degree // 2
+                    children_index = len(curr_node.children) // 2
+                    median = curr_node.key_values[median_index]
+                    median_key = int.from_bytes(median.key, byteorder=self.byteorder)
+                    lesser_children = [Node(key_values=curr_node.key_values[:median_index], children=curr_node.children[:children_index])]
+                    greater_children = [Node(key_values=curr_node.key_values[median_index + 1:], children=curr_node.children[children_index:])]
+                    candidate_parent = nodes.pop() if len(nodes) != 0 else Node()
+                    parent_insertion_index = 0
+                    found_parent_position = False
+                    while parent_insertion_index < len(candidate_parent.key_values) and not found_parent_position:
+                        if median_key > int.from_bytes(candidate_parent.key_values[parent_insertion_index].key, self.byteorder):
+                            parent_insertion_index += 1
+                        else:
+                            found_parent_position = True
+                    candidate_parent.key_values.insert(parent_insertion_index, median)
+                    candidate_parent.children = candidate_parent.children[:parent_insertion_index] + lesser_children + greater_children + candidate_parent.children[parent_insertion_index + 1:]
+                    curr_node = candidate_parent
+            if len(nodes) == 0:
+                self.root = curr_node
         return int.from_bytes(previous_value, byteorder=self.byteorder) if previous_value is not None else None
 
 
