@@ -166,18 +166,20 @@ class BTree:
                     median = self.current_node.key_values[median_index]
                     median_key = median.key
                     self.file.seek(0, 2)
-                    next_idx = self.file.tell() // self.node_size
+                    lesser_next_idx = self.file.tell() // self.node_size if len(self.header.orphans) == 0 else self.header.orphans.pop()
                     new_lesser_node = Node(key_values=self.current_node.key_values[:median_index], children=self.current_node.children[:children_index])
-                    lesser_children = [next_idx]
-                    self.file.seek(next_idx * self.node_size)
+                    lesser_children = [lesser_next_idx]
+                    self.file.seek(lesser_next_idx * self.node_size)
                     self.file.write(self._serialize_node(new_lesser_node))
                     new_greater_node = Node(key_values=self.current_node.key_values[median_index + 1:], children=self.current_node.children[children_index:])
-                    greater_children = [next_idx + 1]
-                    self.file.seek((next_idx + 1) * self.node_size)
+                    self.file.seek(0, 2)
+                    greater_next_idx = self.file.tell() // self.node_size if len(self.header.orphans) == 0 else self.header.orphans.pop()
+                    greater_children = [greater_next_idx]
+                    self.file.seek((greater_next_idx) * self.node_size)
                     self.file.write(self._serialize_node(new_greater_node))
                     self.file.seek(0, 2)
                     last_idx = self.file.tell() // self.node_size
-                    candidate_parent_index = node_idxs.pop() if len(node_idxs) != 0 else last_idx
+                    candidate_parent_index = node_idxs.pop() if len(node_idxs) != 0 else last_idx if len(self.header.orphans) == 0 else self.header.pop()
                     self.file.seek(candidate_parent_index * self.node_size)
                     parent_data = self.file.read(self.node_size)
                     self.current_node = self._parse_node(parent_data)
@@ -190,6 +192,9 @@ class BTree:
                             found_parent_position = True
                     self.current_node.key_values.insert(parent_insertion_index, median)
                     self.current_node.children = self.current_node.children[:parent_insertion_index] + lesser_children + greater_children + self.current_node.children[parent_insertion_index + 1:]
+                    self.header.orphans.append(curr_index)
+                    self.file.seek(0)
+                    self.file.write(self._serialize_header(self.header))
                     curr_index = candidate_parent_index
             if len(node_idxs) == 0:
                 self.header.root_index = curr_index
