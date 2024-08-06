@@ -1,9 +1,10 @@
 from b_tree import BTree
 import random
 
+
 with BTree() as tree:
-    keys = list(range(7))
-    # random.shuffle(keys)
+    keys = list(range(1, 10))
+    random.shuffle(keys)
     for key in keys:
         tree.set(key, key * 10)
     for key in keys:
