@@ -6,7 +6,7 @@ class BTree:
     value_size = 64
     node_index_size = 64
     child_index_size = 64
-    degree = 3
+    degree = 17
     byteorder = "big"
     def __init__(self, db_file=None):
         self.db_file = db_file

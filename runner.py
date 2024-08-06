@@ -3,7 +3,7 @@ import random
 
 
 with BTree() as tree:
-    keys = list(range(1, 10))
+    keys = list(range(1, 10000))
     random.shuffle(keys)
     for key in keys:
         tree.set(key, key * 10)
